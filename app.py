@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from app.db import bulk_insert_df, execute, fetch_df, run_sql_file
+from app.db import DatabaseConnectionError, bulk_insert_df, execute, fetch_df, run_sql_file
 from app.logic import expected_location_for_student, students_in_room_now, teacher_for_room_now
 
 st.set_page_config(page_title="Attendance Coordination", layout="wide")
@@ -201,4 +201,10 @@ PAGES = {
 }
 
 choice = st.sidebar.radio("Navigate", list(PAGES.keys()))
-PAGES[choice]()
+try:
+    PAGES[choice]()
+except DatabaseConnectionError as exc:
+    st.error(str(exc))
+    st.info(
+        "If you are deploying on Streamlit Cloud, add DATABASE_URL in app secrets, then restart the app."
+    )

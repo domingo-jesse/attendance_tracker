@@ -15,6 +15,14 @@ Streamlit + PostgreSQL application to compute each student's **expected current 
    ```bash
    export DATABASE_URL='postgresql://postgres:postgres@localhost:5432/attendance_tracker'
    ```
+   For hosted databases, add SSL in the DSN:
+   ```bash
+   export DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require'
+   ```
+   On Streamlit Cloud, set the same key in **Secrets**:
+   ```toml
+   DATABASE_URL = "postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
+   ```
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt

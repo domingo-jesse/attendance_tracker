@@ -1,17 +1,56 @@
 import os
 from contextlib import contextmanager
 from datetime import date
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import pandas as pd
 import psycopg
 
 
-DB_DSN = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/attendance_tracker")
+class DatabaseConnectionError(RuntimeError):
+    """Raised when the app cannot connect to the configured database."""
+
+
+def _resolve_dsn() -> str:
+    dsn = os.getenv("DATABASE_URL")
+    if dsn:
+        return dsn
+
+    try:
+        import streamlit as st
+
+        secret_dsn = st.secrets.get("DATABASE_URL")
+        if secret_dsn:
+            return secret_dsn
+    except Exception:
+        pass
+
+    return "postgresql://postgres:postgres@localhost:5432/attendance_tracker"
+
+
+def _normalize_dsn(dsn: str) -> str:
+    parsed = urlparse(dsn)
+    if not parsed.hostname or parsed.hostname in {"localhost", "127.0.0.1"}:
+        return dsn
+
+    query = dict(parse_qsl(parsed.query))
+    if "sslmode" in query:
+        return dsn
+
+    query["sslmode"] = "require"
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 @contextmanager
 def get_conn():
-    conn = psycopg.connect(DB_DSN)
+    try:
+        conn = psycopg.connect(_normalize_dsn(_resolve_dsn()), connect_timeout=10)
+    except psycopg.OperationalError as exc:
+        raise DatabaseConnectionError(
+            "Unable to connect to PostgreSQL. Set DATABASE_URL (or Streamlit secret DATABASE_URL) "
+            "to a reachable database, and include sslmode=require for hosted DB providers."
+        ) from exc
+
     try:
         yield conn
     finally:
